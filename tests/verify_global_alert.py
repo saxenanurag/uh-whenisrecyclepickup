@@ -7,6 +7,9 @@ def verify_global_alert():
         # Go to local file
         page.goto("http://localhost:8080/index.html")
 
+        # Enable Testing Mode via Console
+        page.evaluate("window.enableTesting()")
+
         # 1. Simulate a Normal Week (Jan 5, 2026 - no holiday this week)
         page.fill("#simDate", "2026-01-05")
         page.click("text=Update")

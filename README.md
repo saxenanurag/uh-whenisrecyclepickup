@@ -23,7 +23,12 @@ This is a simple web application that helps residents of University Heights find
 
 ## Simulation Mode (Testing)
 
-If you are running this app in a year prior to 2026 (e.g., 2025), a "Date Simulation" panel will appear. This allows you to set a simulated "Today" date to verify that the schedule calculations for 2026 are correct.
+The application includes a hidden simulation mode to test dates in 2026 (useful if you are running the app in a previous year or want to verify future schedules).
+
+To enable it:
+1. Open your browser's **Developer Console** (usually F12 or Right Click -> Inspect -> Console).
+2. Type `enableTesting()` and press Enter.
+3. A "Date Simulation" panel will appear, allowing you to simulate "Today" as any date in 2026.
 
 ## Data Sources
 
