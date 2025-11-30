@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Heights Recycling Schedule 2026</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>University Heights Recycling Schedule</h1>
+            <p>Enter your street name to find your 2026 recycling pickup schedule.</p>
+        </header>
+
+        <main>
+            <div id="globalAlert" class="global-alert" style="display: none;" role="alert">
+                <strong>Holiday Week:</strong> Pickup will be delayed by a day.
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="streetInput" placeholder="Enter street name (e.g., Cedar)" aria-label="Street Name">
+                <button onclick="findSchedule()">Find Schedule</button>
+            </div>
+
+            <div id="results" class="results-container" aria-live="polite"></div>
+
+            <div class="simulation-controls" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;">
+                <h3>Date Simulation (For Testing)</h3>
+                <label for="simDate">Simulate "Today":</label>
+                <input type="date" id="simDate" value="2026-01-01">
+                <button onclick="findSchedule()">Update</button>
+                <p id="currentDateDisplay"></p>
+            </div>
+        </main>
+
+        <footer>
+            <h3>Source Information</h3>
+            <ul>
+                <li><a href="https://www.universityheights.com/wp-content/uploads/2024/09/Recycling-Routes.pdf" target="_blank">Recycling Routes PDF</a></li>
+                <li><a href="https://www.universityheights.com/wp-content/uploads/2025/11/2026-Recycling-Schedule.pdf" target="_blank">2026 Schedule PDF</a></li>
+                <li><a href="https://www.universityheights.com/departments/service/#service|9" target="_blank">Service Department Website</a></li>
+            </ul>
+            <p><small>This app is for informational purposes. Please refer to official city communications for changes.</small></p>
+        </footer>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
