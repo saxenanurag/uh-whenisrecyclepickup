@@ -134,6 +134,34 @@ function checkHolidayWeek(today) {
     }
 }
 
+function createGoogleCalendarLink(date, streetName) {
+    const title = encodeURIComponent("Recycling Pickup");
+    const details = encodeURIComponent(`University Heights Recycling Pickup for ${streetName}`);
+    
+    // Date format: YYYYMMDD/YYYYMMDD (all day event)
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    // Note: Google Calendar requires the end date to be the day after for a single all-day event, 
+    // OR just passing the same day works in some contexts, but strictly strictly standard is YYYYMMDD/YYYYMM(DD+1).
+    // However, for simplicity and safety across timezones, let's try the simple YYYYMMDD/YYYYMMDD approach first, 
+    // but actually, Google Calendar API for render action usually takes YYYYMMDD/YYYYMMDD for single day if it's inclusive?
+    // Let's verify standard behavior. Actually, for a one-day all-day event, start=20260105 and end=20260106 is the robust way.
+    
+    const nextDay = new Date(date);
+    nextDay.setDate(date.getDate() + 1);
+    const ny = nextDay.getFullYear();
+    const nm = String(nextDay.getMonth() + 1).padStart(2, '0');
+    const nd = String(nextDay.getDate()).padStart(2, '0');
+
+    const dateStrStart = `${y}${m}${d}`;
+    const dateStrEnd = `${ny}${nm}${nd}`;
+    
+    const dates = `${dateStrStart}/${dateStrEnd}`; 
+
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
+}
+
 function findSchedule() {
     const input = document.getElementById('streetInput').value;
     const resultsDiv = document.getElementById('results');
@@ -177,6 +205,15 @@ function findSchedule() {
 
             html += `<div class="date-display">Next Pickup: ${formatDate(nextDate)}</div>`;
             html += delayHtml;
+
+            // Add Google Calendar Link
+            const gCalLink = createGoogleCalendarLink(nextDate, match.name);
+            html += `<div style="margin-top: 15px;">
+                <a href="${gCalLink}" target="_blank" style="display: inline-flex; align-items: center; padding: 8px 12px; background-color: #4285F4; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em; font-weight: 500;">
+                    <span style="margin-right: 5px;">📅</span> Add to Google Calendar
+                </a>
+            </div>`;
+
         } else {
             html += `<div class="error">Could not determine next pickup date.</div>`;
         }
