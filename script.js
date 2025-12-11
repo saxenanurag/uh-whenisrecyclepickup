@@ -35,8 +35,13 @@ function updateSimulationUI() {
 
 function findStreet(query) {
     if (!query || query.trim().length < 2) return [];
-    query = query.toLowerCase().trim();
-    return STREET_DATA.filter(s => s.name.toLowerCase().includes(query));
+    let cleanQuery = query.toLowerCase().trim();
+
+    // Remove common suffixes to match user input like "Cedar Rd" to data "Cedar"
+    const suffixRegex = /\s+(road|rd|street|st|avenue|ave|boulevard|blvd|drive|dr|lane|ln|court|ct|place|pl|terrace|ter|circle|cir|way|parkway|pkwy|oval)\.?$/i;
+    cleanQuery = cleanQuery.replace(suffixRegex, "").trim();
+
+    return STREET_DATA.filter(s => s.name.toLowerCase().includes(cleanQuery));
 }
 
 function getNextPickupDate(route, standardDayStr, queryDate) {
