@@ -116,18 +116,32 @@ function checkHolidayWeek(today) {
     const weekEnd = new Date(currentMonday);
     weekEnd.setDate(currentMonday.getDate() + 6);
 
-    let isHolidayWeek = false;
+    let holidayFound = null;
+    let holidayDayIndex = -1;
+
     for (let h of HOLIDAYS_2026) {
         const hDate = new Date(h.date + "T12:00:00");
         if (hDate >= currentMonday && hDate <= weekEnd) {
             if (hDate.getDay() >= 1 && hDate.getDay() <= 5) {
-                isHolidayWeek = true;
+                holidayFound = h;
+                holidayDayIndex = hDate.getDay();
                 break;
             }
         }
     }
 
-    if (isHolidayWeek) {
+    if (holidayFound) {
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayName = dayNames[holidayDayIndex];
+
+        let msg = `<strong>Holiday Week:</strong> `;
+        if (holidayDayIndex === 1) {
+            msg += "Pickup will be delayed by a day.";
+        } else {
+            msg += `Pickup delayed by a day for routes on or after ${dayName}.`;
+        }
+
+        alertBox.innerHTML = msg;
         alertBox.style.display = 'block';
     } else {
         alertBox.style.display = 'none';
