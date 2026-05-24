@@ -36,6 +36,12 @@ h1 {
     margin-bottom: 10px;
 }
 
+.schedule-note {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
 .search-box {
     display: flex;
     gap: 10px;
@@ -87,13 +93,39 @@ button:hover {
 .route-info {
     font-size: 0.9em;
     color: #7f8c8d;
-    margin: 0 0 10px 0;
+    margin: 0 0 15px 0;
+}
+
+.pickup-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+}
+
+.pickup-item:last-child {
+    margin-bottom: 0;
+}
+
+.pickup-item.rubbish {
+    background: #fef9e7;
+    border-left: 4px solid #f39c12;
+}
+
+.pickup-item.recycling {
+    background: #eafaf1;
+    border-left: 4px solid #27ae60;
+}
+
+.pickup-header {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.95em;
 }
 
 .date-display {
     font-size: 1.2em;
     font-weight: bold;
-    color: #27ae60;
+    color: #2c3e50;
 }
 
 .delay-note {
@@ -103,9 +135,18 @@ button:hover {
     margin-top: 5px;
 }
 
-.next-date {
-    color: #7f8c8d;
+.cal-link {
+    margin-top: 8px;
+}
+
+.cal-link a {
+    color: #2980b9;
+    text-decoration: none;
     font-size: 0.9em;
+}
+
+.cal-link a:hover {
+    text-decoration: underline;
 }
 
 .error {

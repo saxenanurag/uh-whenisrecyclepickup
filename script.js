@@ -8,7 +8,7 @@ window.enableTesting = function () {
     // Default sim date if empty
     const simDateInput = document.getElementById('simDate');
     if (!simDateInput.value) {
-        simDateInput.value = '2026-01-01';
+        simDateInput.value = '2026-06-01';
     }
 
     updateSimulationUI();
@@ -44,55 +44,92 @@ function findStreet(query) {
     return STREET_DATA.filter(s => s.name.toLowerCase().includes(cleanQuery));
 }
 
-function getNextPickupDate(route, standardDayStr, queryDate) {
-    // standardDayStr: "Monday", "Tuesday", etc.
+// Returns the A/B route for the week containing the given date
+function getWeekRoute(date) {
+    const aRouteStart = new Date(A_ROUTE_START + "T12:00:00");
+    const monday = getMondayOf(date);
+    const timeDiff = monday.getTime() - aRouteStart.getTime();
+    const weeksDiff = Math.round(timeDiff / (1000 * 3600 * 24 * 7));
+    if (weeksDiff % 2 === 0) return "A";
+    return "B";
+}
+
+// Get the Monday of the week containing date
+function getMondayOf(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day == 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(12, 0, 0, 0);
+    return d;
+}
+
+// Apply holiday delay to a pickup date
+function applyHolidayDelay(pickupDate, queryDate) {
+    const currentMonday = getMondayOf(pickupDate);
+    const weekEnd = new Date(currentMonday);
+    weekEnd.setDate(currentMonday.getDate() + 6);
+
+    let delay = 0;
+    for (let h of HOLIDAYS_2026) {
+        const hDate = new Date(h.date + "T12:00:00");
+        if (hDate >= currentMonday && hDate <= weekEnd) {
+            if (hDate.getDay() >= 1 && hDate.getDay() <= 5) {
+                if (hDate <= pickupDate) {
+                    delay = 1;
+                }
+            }
+        }
+    }
+
+    let adjustedDate = new Date(pickupDate);
+    adjustedDate.setDate(pickupDate.getDate() + delay);
+
+    const qDateNorm = new Date(queryDate);
+    qDateNorm.setHours(12, 0, 0, 0);
+
+    if (adjustedDate >= qDateNorm) {
+        return { date: adjustedDate, delay: delay };
+    }
+    return null;
+}
+
+// Find next recycling pickup (every other week, route A or B)
+function getNextRecyclingDate(route, standardDayStr, queryDate) {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const standardDayIdx = days.indexOf(standardDayStr);
 
-    // Iterate weeks starting from the week of queryDate
-    let currentMonday = new Date(queryDate);
-    const day = currentMonday.getDay();
-    const diff = currentMonday.getDate() - day + (day == 0 ? -6 : 1); // adjust when day is sunday
-    currentMonday.setDate(diff);
-    currentMonday.setHours(12, 0, 0, 0);
+    let currentMonday = getMondayOf(queryDate);
 
-    // Reference A Route Start: Jan 5 2026
-    const aRouteStart = new Date(A_ROUTE_START + "T12:00:00");
+    for (let i = 0; i < 12; i++) {
+        const weekRoute = getWeekRoute(currentMonday);
 
-    // Look ahead up to 4 weeks
-    for (let i = 0; i < 4; i++) {
-        const timeDiff = currentMonday.getTime() - aRouteStart.getTime();
-        const weeksDiff = Math.round(timeDiff / (1000 * 3600 * 24 * 7));
-
-        let currentWeekRoute = (weeksDiff % 2 === 0) ? "A" : "B";
-        if (weeksDiff % 2 !== 0) currentWeekRoute = "B";
-
-        if (currentWeekRoute === route) {
+        if (weekRoute === route) {
             let pickupDate = new Date(currentMonday);
             pickupDate.setDate(currentMonday.getDate() + (standardDayIdx - 1));
 
-            let delay = 0;
-            const weekEnd = new Date(currentMonday);
-            weekEnd.setDate(currentMonday.getDate() + 6);
-
-            for (let h of HOLIDAYS_2026) {
-                const hDate = new Date(h.date + "T12:00:00");
-                if (hDate >= currentMonday && hDate <= weekEnd) {
-                    if (hDate.getDay() <= standardDayIdx && hDate.getDay() !== 0 && hDate.getDay() !== 6) {
-                        delay = 1;
-                    }
-                }
-            }
-
-            pickupDate.setDate(pickupDate.getDate() + delay);
-
-            const qDateNorm = new Date(queryDate);
-            qDateNorm.setHours(12, 0, 0, 0);
-
-            if (pickupDate >= qDateNorm) {
-                return pickupDate;
-            }
+            const result = applyHolidayDelay(pickupDate, queryDate);
+            if (result) return result;
         }
+
+        currentMonday.setDate(currentMonday.getDate() + 7);
+    }
+    return null;
+}
+
+// Find next rubbish pickup (every week, no A/B cycle)
+function getNextRubbishDate(standardDayStr, queryDate) {
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const standardDayIdx = days.indexOf(standardDayStr);
+
+    let currentMonday = getMondayOf(queryDate);
+
+    for (let i = 0; i < 12; i++) {
+        let pickupDate = new Date(currentMonday);
+        pickupDate.setDate(currentMonday.getDate() + (standardDayIdx - 1));
+
+        const result = applyHolidayDelay(pickupDate, queryDate);
+        if (result) return result;
 
         currentMonday.setDate(currentMonday.getDate() + 7);
     }
@@ -107,12 +144,7 @@ function formatDate(date) {
 function checkHolidayWeek(today) {
     const alertBox = document.getElementById('globalAlert');
 
-    let currentMonday = new Date(today);
-    const day = currentMonday.getDay();
-    const diff = currentMonday.getDate() - day + (day == 0 ? -6 : 1);
-    currentMonday.setDate(diff);
-    currentMonday.setHours(12, 0, 0, 0);
-
+    let currentMonday = getMondayOf(today);
     const weekEnd = new Date(currentMonday);
     weekEnd.setDate(currentMonday.getDate() + 6);
 
@@ -148,19 +180,13 @@ function checkHolidayWeek(today) {
     }
 }
 
-function createGoogleCalendarLink(date, streetName) {
-    const title = encodeURIComponent("Recycling Pickup");
-    const details = encodeURIComponent(`University Heights Recycling Pickup for ${streetName}`);
+function createGoogleCalendarLink(date, streetName, pickupType) {
+    const title = encodeURIComponent(`${pickupType} Pickup`);
+    const details = encodeURIComponent(`${pickupType} Pickup for ${streetName}`);
 
-    // Date format: YYYYMMDD/YYYYMMDD (all day event)
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
-    // Note: Google Calendar requires the end date to be the day after for a single all-day event,
-    // OR just passing the same day works in some contexts, but strictly strictly standard is YYYYMMDD/YYYYMM(DD+1).
-    // However, for simplicity and safety across timezones, let's try the simple YYYYMMDD/YYYYMMDD approach first,
-    // but actually, Google Calendar API for render action usually takes YYYYMMDD/YYYYMMDD for single day if it's inclusive?
-    // Let's verify standard behavior. Actually, for a one-day all-day event, start=20260105 and end=20260106 is the robust way.
 
     const nextDay = new Date(date);
     nextDay.setDate(date.getDate() + 1);
@@ -170,7 +196,6 @@ function createGoogleCalendarLink(date, streetName) {
 
     const dateStrStart = `${y}${m}${d}`;
     const dateStrEnd = `${ny}${nm}${nd}`;
-
     const dates = `${dateStrStart}/${dateStrEnd}`;
 
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
@@ -196,7 +221,8 @@ function findSchedule() {
     }
 
     matches.forEach(match => {
-        const nextDate = getNextPickupDate(match.route, match.day, today);
+        const rubbishResult = getNextRubbishDate(match.day, today);
+        const recyclingResult = getNextRecyclingDate(match.route, match.day, today);
 
         const card = document.createElement('div');
         card.className = 'result-card';
@@ -209,147 +235,55 @@ function findSchedule() {
         let html = `<h3>${streetTitle}</h3>`;
         html += `<p class="route-info">Route ${match.route} &bull; Regular Schedule: ${match.day}</p>`;
 
-        if (nextDate) {
+        // Rubbish pickup (every week)
+        if (rubbishResult) {
             const standardDay = match.day;
-            const pickupDay = nextDate.toLocaleDateString('en-US', { weekday: 'long' });
+            const pickupDay = rubbishResult.date.toLocaleDateString('en-US', { weekday: 'long' });
             let delayHtml = "";
             if (standardDay !== pickupDay) {
                 delayHtml = `<div class="delay-note">⚠️ Schedule adjusted for holiday</div>`;
             }
 
-            html += `<div class="date-display">Next Pickup: ${formatDate(nextDate)}</div>`;
+            html += `<div class="pickup-item rubbish">`;
+            html += `<div class="pickup-header">🗑️ Rubbish Pickup (Weekly)</div>`;
+            html += `<div class="date-display">Next: ${formatDate(rubbishResult.date)}</div>`;
             html += delayHtml;
 
-            // Add Google Calendar Buttons
-            const gCalLink = createGoogleCalendarLink(nextDate, match.name);
-            html += `<div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <a href="${gCalLink}" target="_blank" style="display: inline-flex; align-items: center; padding: 8px 12px; background-color: #4285F4; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em; font-weight: 500;">
-                    <span style="margin-right: 5px;">📅</span> Add Next Pickup
-                </a>
-                <button onclick="downloadFullSchedule('${match.route}', '${match.day}', '${match.name}', '${match.segment || ''}')" style="display: inline-flex; align-items: center; padding: 8px 12px; background-color: #34A853; color: white; border: none; border-radius: 4px; font-size: 0.9em; font-weight: 500; cursor: pointer;">
-                    <span style="margin-right: 5px;">🗓️</span> Download 2026 Schedule
-                </button>
-            </div>`;
+            const rCalLink = createGoogleCalendarLink(rubbishResult.date, match.name, "Rubbish");
+            html += `<div class="cal-link">`;
+            html += `<a href="${rCalLink}" target="_blank">📅 Add to Calendar</a>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
 
-        } else {
+        // Recycling pickup (every other week)
+        if (recyclingResult) {
+            const standardDay = match.day;
+            const pickupDay = recyclingResult.date.toLocaleDateString('en-US', { weekday: 'long' });
+            let delayHtml = "";
+            if (standardDay !== pickupDay) {
+                delayHtml = `<div class="delay-note">⚠️ Schedule adjusted for holiday</div>`;
+            }
+
+            html += `<div class="pickup-item recycling">`;
+            html += `<div class="pickup-header">♻️ Recycling Pickup (Route ${match.route} Weeks)</div>`;
+            html += `<div class="date-display">Next: ${formatDate(recyclingResult.date)}</div>`;
+            html += delayHtml;
+
+            const gCalLink = createGoogleCalendarLink(recyclingResult.date, match.name, "Recycling");
+            html += `<div class="cal-link">`;
+            html += `<a href="${gCalLink}" target="_blank">📅 Add to Calendar</a>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        if (!rubbishResult && !recyclingResult) {
             html += `<div class="error">Could not determine next pickup date.</div>`;
         }
 
         card.innerHTML = html;
         resultsDiv.appendChild(card);
     });
-}
-
-function getAllPickupDates(route, standardDayStr) {
-    const dates = [];
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const standardDayIdx = days.indexOf(standardDayStr);
-
-    // Start from Jan 1 2026 to Dec 31 2026
-    let currentMonday = new Date("2025-12-29T12:00:00");
-
-    for (let i = 0; i < 54; i++) {
-        const aRouteStart = new Date(A_ROUTE_START + "T12:00:00");
-        const timeDiff = currentMonday.getTime() - aRouteStart.getTime();
-        const weeksDiff = Math.round(timeDiff / (1000 * 3600 * 24 * 7));
-
-        let currentWeekRoute = (weeksDiff % 2 === 0) ? "A" : "B";
-        if (weeksDiff % 2 !== 0) currentWeekRoute = "B";
-
-        if (currentWeekRoute === route) {
-            let pickupDate = new Date(currentMonday);
-            pickupDate.setDate(currentMonday.getDate() + (standardDayIdx - 1));
-
-            // Check holidays
-            let delay = 0;
-            const weekEnd = new Date(currentMonday);
-            weekEnd.setDate(currentMonday.getDate() + 6);
-
-            for (let h of HOLIDAYS_2026) {
-                const hDate = new Date(h.date + "T12:00:00");
-                if (hDate >= currentMonday && hDate <= weekEnd) {
-                    if (hDate.getDay() <= standardDayIdx && hDate.getDay() !== 0 && hDate.getDay() !== 6) {
-                        delay = 1;
-                    }
-                }
-            }
-
-            pickupDate.setDate(pickupDate.getDate() + delay);
-
-            // Only add if in 2026
-            if (pickupDate.getFullYear() === 2026) {
-                dates.push({
-                    date: pickupDate,
-                    isDelayed: delay > 0
-                });
-            }
-        }
-        currentMonday.setDate(currentMonday.getDate() + 7);
-    }
-    return dates;
-}
-
-function generateICS(pickupObjects, streetName, segment, route, standardDay) {
-    let icsContent = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//University Heights//Recycling Schedule//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n";
-
-    const now = new Date();
-    const stamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-    const streetDisplay = segment ? `${streetName} (${segment})` : streetName;
-
-    pickupObjects.forEach(obj => {
-        const date = obj.date;
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        const dateStr = `${y}${m}${d}`;
-
-        const nextDay = new Date(date);
-        nextDay.setDate(date.getDate() + 1);
-        const ny = nextDay.getFullYear();
-        const nm = String(nextDay.getMonth() + 1).padStart(2, '0');
-        const nd = String(nextDay.getDate()).padStart(2, '0');
-        const nextDayStr = `${ny}${nm}${nd}`;
-
-        const scheduleType = obj.isDelayed ? "Delayed schedule" : "Regular schedule";
-
-        let desc = `${streetDisplay}\\n`;
-        desc += `Route ${route} • Regular Schedule: ${standardDay}\\n`;
-        desc += `${scheduleType}\\n\\n`;
-        desc += `Resources:\\n`;
-        desc += `Recycling Routes PDF: https://www.universityheights.com/wp-content/uploads/2024/09/Recycling-Routes.pdf\\n`;
-        desc += `2026 Schedule PDF: https://www.universityheights.com/wp-content/uploads/2025/11/2026-Recycling-Schedule.pdf\\n`;
-        desc += `Service Department: https://www.universityheights.com/departments/service/#service|9\\n\\n`;
-        desc += `Please check official city communications for changes.`;
-
-        icsContent += "BEGIN:VEVENT\r\n";
-        icsContent += `DTSTART;VALUE=DATE:${dateStr}\r\n`;
-        icsContent += `DTEND;VALUE=DATE:${nextDayStr}\r\n`;
-        icsContent += `DTSTAMP:${stamp}\r\n`;
-        icsContent += `UID:${dateStr}-${streetName.replace(/\s+/g, '')}@universityheights.com\r\n`;
-        icsContent += `SUMMARY:Recycling Pickup: ${streetName} Route ${route}\r\n`;
-        icsContent += `DESCRIPTION:${desc}\r\n`;
-        icsContent += "STATUS:CONFIRMED\r\n";
-        icsContent += "END:VEVENT\r\n";
-    });
-
-    icsContent += "END:VCALENDAR";
-    return icsContent;
-}
-
-function downloadFullSchedule(route, day, streetName, segment) {
-    if (segment === 'undefined' || segment === 'null') segment = '';
-
-    const pickupObjects = getAllPickupDates(route, day);
-    const icsContent = generateICS(pickupObjects, streetName, segment, route, day);
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', `${streetName}_${route}_Recycling_Schedule_2026.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 }
 
 // Initial display
